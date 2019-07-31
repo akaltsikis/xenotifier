@@ -19,14 +19,13 @@ UNAME = os.environ.get('GMAIL_USERNAME')
 # gmail password
 PWD = os.environ.get('GMAIL_PWD')
 # sender address
-FROM = 'xenotifier@gmail.com'
+FROM = UNAME+'@gmail.com'
 # comma separated list of recipients
 TO = os.environ.get('XE_RECIPIENTS')
 
 soup = bs(requests.get(URL).content, 'lxml')
-houses = soup.findAll('div', class_='lazy r')
+pages = soup.findAll('td', class_='page')
 houses_list = []
-
 with open(
     os.path.join(
         os.path.dirname(os.path.abspath(__file__)),
@@ -35,25 +34,36 @@ with open(
     'ra+'
 ) as logfile:
     seen = logfile.read().splitlines()
-    for house in houses:
-        price = 'Not Available'
-        date_posted = 'Not Available'
-        if house.find('li', class_='r_price'):
-            price = house.find('li', class_='r_price').text.encode('utf-8')
-        if house.find('p', class_='r_date'):
-            date_posted = house.find('p', class_='r_date').text.encode('utf-8')
-        url = house.find(href=re.compile('enoikiaseis')).attrs['href']
-        if url not in seen:
-            logfile.write(url+'\n')
-            houses_list.append({
-                'url': url,
-                'price': price,
-                'description': house.find('p').text.encode('utf-8'),
-                'date_posted': date_posted,
-                'tm': [
-                    li for li in house.findAll('li') if u' τ.μ.' in li.text
-                ][0].text.encode('utf-8')
-            })
+    for page in pages:
+        print 'http://xe.gr'+page.a.attrs['href']
+        if len(houses_list)==0:
+                souppages=soup
+        else:
+            souppages = bs(requests.get('http://xe.gr'+page.a.attrs['href']).content, 'lxml')
+        houses = souppages.findAll('div', class_='r')
+        c=0
+        for house in houses:
+            price = 'Not Available'
+            date_posted = 'Not Available'
+            if house.find('li', class_='r_price'):
+                price = house.find('li', class_='r_price').text.encode('utf-8')
+            if house.find('p', class_='r_date'):
+                date_posted = house.find('p', class_='r_date').text.encode('utf-8')
+            url = house.find(href=re.compile('enoikiaseis')).attrs['href']
+            if url not in seen:
+                c+=1
+                logfile.write(url+'\n')
+                houses_list.append({
+                    'url': url,
+                    'price': price,
+                    'description': house.find('p').text.encode('utf-8'),
+                    'date_posted': date_posted,
+                    'tm': [
+                        li for li in house.findAll('li') if u' τ.μ.' in li.text
+                    ][0].text.encode('utf-8')
+                })
+        if(c<len(houses)):
+            break
 
 body = ''
 for house in houses_list:
